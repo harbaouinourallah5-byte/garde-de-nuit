@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garde de nuit — Simulateur Infirmier de Constantes Vitales</title>
+    <!-- Polices & Icônes FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- En-tête Principal Hospitalier -->
+    <header class="hospital-header">
+        <div class="header-inner">
+            <div class="brand-section">
+                <div class="brand-icon-wrap">
+                    <i class="fas fa-user-nurse"></i>
+                </div>
+                <div class="brand-text">
+                    <h1>GARDE DE <span>NUIT</span></h1>
+                    <div class="brand-subtitle">Simulateur de Soins & Constantes Vitales — Hôpital Universitaire</div>
+                </div>
+            </div>
+
+            <div class="header-status-bar">
+                <div class="shift-badge">
+                    <i class="fas fa-moon text-orange"></i>
+                    <span>Tour de ronde : <strong>02h30</strong></span>
+                </div>
+                <div class="warning-badge" id="warning-counter-badge">
+                    <i class="fas fa-shield-virus"></i> 0 avertissement(s)
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <button class="header-btn" id="btn-toggle-sound" title="Activer / Désactiver les sons du scope et des soins">
+                    <i class="fas fa-volume-up"></i> Son : Activé
+                </button>
+                <button class="header-btn highlight" id="btn-open-pptx-ref" title="Consulter le référentiel des normes du cours">
+                    <i class="fas fa-book-medical"></i> Référentiel PPTX
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Barre de Navigation des 3 Cas Cliniques -->
+    <nav class="case-tabs-bar" aria-label="Sélecteur de cas clinique">
+        <div class="case-tabs-inner">
+            <button class="case-tab-btn active" data-case="0">
+                <span class="tab-badge">1</span>
+                <div class="tab-details">
+                    <span class="tab-title">Cas 1 : Enfant avec Fièvre</span>
+                    <span class="tab-subtitle">Léo (8 ans) — T° 38,8 °C | Pouls 120 bpm</span>
+                </div>
+            </button>
+            <button class="case-tab-btn" data-case="1">
+                <span class="tab-badge">2</span>
+                <div class="tab-details">
+                    <span class="tab-title">Cas 2 : Homme Âgé & Céphalées</span>
+                    <span class="tab-subtitle">M. Robert (74 ans) — TA 165/100 | Pouls 88</span>
+                </div>
+            </button>
+            <button class="case-tab-btn" data-case="2">
+                <span class="tab-badge">3</span>
+                <div class="tab-details">
+                    <span class="tab-title">Cas 3 : Patiente Post-Opératoire</span>
+                    <span class="tab-subtitle">Mme Sylvie (52 ans) — SpO₂ 91 % | FR 24 cpm</span>
+                </div>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Bannière Globale d'Avertissement Chronologique -->
+    <div class="app-main-layout" style="margin-bottom: 0; padding-bottom: 0;">
+        <div id="order-warning-banner" class="order-warning-banner" role="alert"></div>
+    </div>
+
+    <!-- Zone Centrale du Simulateur -->
+    <main class="app-main-layout">
+
+        <!-- COLONNE GAUCHE : Patient virtuel & Chariot de soins -->
+        <div class="left-column-patient">
+
+            <!-- Carte Chambre & Patient -->
+            <section class="patient-room-card">
+                <div class="patient-card-header">
+                    <div class="patient-identity">
+                        <h2 id="patient-name-display">Léo Mercier</h2>
+                        <div class="patient-meta-tags">
+                            <span class="meta-pill" id="patient-age-display">8 ans</span>
+                            <span class="meta-pill" id="case-service-display">Pédiatrie de Garde - Chambre 204</span>
+                        </div>
+                    </div>
+                    <div class="room-tag" id="case-title-display">Cas 1 : Pédiatrie</div>
+                </div>
+
+                <!-- Lit d'hôpital & Patient virtuel avec thorax animé -->
+                <div class="patient-bed-visual">
+                    <div id="patient-avatar-container">
+                        <!-- L'avatar SVG dynamique et le thorax respirant sont injectés ici -->
+                    </div>
+                    <div class="breathing-sync-status">
+                        <i class="fas fa-lungs text-orange"></i>
+                        <span id="patient-rr-sync-indicator">Respiration synchronisée en temps réel</span>
+                    </div>
+                </div>
+
+                <!-- Dialogue direct du patient -->
+                <div class="patient-dialogue-bubble">
+                    <div class="dialogue-speaker">
+                        <i class="fas fa-comment-dots"></i> Patient au chevet :
+                    </div>
+                    <p id="patient-bubble-text">« Bonjour l'infirmier(ère)... J'ai super froid et chaud en même temps... ma tête tape... »</p>
+                </div>
+
+                <!-- Contexte d'admission -->
+                <div class="patient-clinical-context">
+                    <h4><i class="fas fa-notes-medical"></i> Transmission de Relève & Contexte Clinique</h4>
+                    <p id="patient-context-text">Patient admis pour syndrome fébrile aigu. En pleine nuit, il frissonne sous la couette et se plaint de malaises.</p>
+                </div>
+            </section>
+
+            <!-- Chariot de soins & Outils de mesure du PPTX -->
+            <section class="tools-tray-section">
+                <div class="section-title-wrap">
+                    <h3><i class="fas fa-toolbox text-orange"></i> Chariot de Soins & Outils de Mesure</h3>
+                    <small class="text-muted">Choisissez un outil pour débuter le protocole</small>
+                </div>
+
+                <div class="tools-grid" id="tools-grid">
+                    <!-- Outils générés dynamiquement :
+                         1. Thermomètre (Slide 7)
+                         2. Tensiomètre + Stéthoscope (Slide 20)
+                         3. Oxymètre de pouls (Slide 24)
+                         4. Main pour le pouls (Slide 12)
+                         5. Montre pour la FR (Slide 16)
+                    -->
+                </div>
+            </section>
+
+        </div>
+
+        <!-- COLONNE DROITE : Moniteur de Chevet, Feuille de constantes & Transmission -->
+        <div class="right-column-monitor">
+
+            <!-- Moniteur Multiparamétrique en Direct (Live Bedside Scope) -->
+            <section class="bedside-monitor-scope" aria-label="Moniteur multiparamétrique de chevet">
+                <div class="scope-header-bar">
+                    <div class="scope-brand">
+                        <div class="scope-live-dot"></div>
+                        <span>SCOPE MONITOR 5-LEADS • CHEVET VIRTUEL</span>
+                    </div>
+                    <div class="scope-mode-tag">
+                        <i class="fas fa-heartbeat text-green"></i> MODE CLINIQUE TEMPS RÉEL
+                    </div>
+                </div>
+
+                <!-- Tracés Oscilloscopiques en direct -->
+                <div class="waveforms-display-panel">
+                    <!-- ECG Tracé P-QRS-T -->
+                    <div class="waveform-block">
+                        <div class="waveform-header ecg-lead">
+                            <span><i class="fas fa-wave-square"></i> ECG DII (P-QRS-T Sweep)</span>
+                            <span id="scope-ecg-hr-label">Synchronisé sur la FC</span>
+                        </div>
+                        <canvas id="ecg-canvas" class="scope-canvas" height="75"></canvas>
+                    </div>
+
+                    <!-- Respiration Onde Capnographique -->
+                    <div class="waveform-block">
+                        <div class="waveform-header resp-lead">
+                            <span><i class="fas fa-wind"></i> RESP (Tracé Thoracique)</span>
+                            <span id="scope-resp-label">Synchronisé sur la FR</span>
+                        </div>
+                        <canvas id="resp-canvas" class="scope-canvas" height="65"></canvas>
+                    </div>
+                </div>
+
+                <!-- Affichage Numérique des 5 Constantes avec Code Couleur PPTX -->
+                <div class="vitals-digital-grid">
+                    <!-- Température -->
+                    <div class="vital-digital-card">
+                        <div class="vital-label-row">
+                            <span class="vital-name">TEMP (°C)</span>
+                            <i class="fas fa-thermometer-half text-muted"></i>
+                        </div>
+                        <div class="val-number unmeasured" id="disp-temp">--,- °C</div>
+                        <div class="status-tag gray" id="badge-temp">Non mesurée</div>
+                    </div>
+
+                    <!-- Pouls / FC -->
+                    <div class="vital-digital-card">
+                        <div class="vital-label-row">
+                            <span class="vital-name">POULS (BPM)</span>
+                            <i class="fas fa-heart text-muted"></i>
+                        </div>
+                        <div class="val-number unmeasured" id="disp-pulse">-- bpm</div>
+                        <div class="status-tag gray" id="badge-pulse">Non mesuré</div>
+                    </div>
+
+                    <!-- Fréquence Respiratoire -->
+                    <div class="vital-digital-card">
+                        <div class="vital-label-row">
+                            <span class="vital-name">RESP (CPM)</span>
+                            <i class="fas fa-lungs text-muted"></i>
+                        </div>
+                        <div class="val-number unmeasured" id="disp-resp">-- cpm</div>
+                        <div class="status-tag gray" id="badge-resp">Non comptée</div>
+                    </div>
+
+                    <!-- Pression Artérielle -->
+                    <div class="vital-digital-card full-row">
+                        <div class="vital-label-row">
+                            <span class="vital-name">TA (MMHG)</span>
+                            <i class="fas fa-tachometer-alt text-muted"></i>
+                        </div>
+                        <div class="val-number unmeasured" id="disp-bp">---/-- mmHg</div>
+                        <div class="status-tag gray" id="badge-bp">Non mesurée</div>
+                    </div>
+
+                    <!-- SpO2 -->
+                    <div class="vital-digital-card full-row">
+                        <div class="vital-label-row">
+                            <span class="vital-name">SpO₂ (%)</span>
+                            <i class="fas fa-fingerprint text-muted"></i>
+                        </div>
+                        <div class="val-number unmeasured" id="disp-spo2">-- %</div>
+                        <div class="status-tag gray" id="badge-spo2">Non mesurée</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Feuille de Surveillance des Constantes (Dossier Patient) -->
+            <section class="chart-surveillance-card">
+                <h3><i class="fas fa-clipboard-list text-orange"></i> Feuille de Surveillance de Nuit</h3>
+                <div class="table-responsive">
+                    <table class="clinical-chart-table">
+                        <thead>
+                            <tr>
+                                <th>Paramètre vital</th>
+                                <th>Norme du cours PPTX</th>
+                                <th>Valeur mesurée</th>
+                                <th>Interprétation</th>
+                                <th>Heure</th>
+                            </tr>
+                        </thead>
+                        <tbody id="chart-table-body">
+                            <!-- Lignes remplies au fur et à mesure des mesures -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Section Rédaction de la Transmission & Clôture de Ronde -->
+            <section class="transmission-section-card" id="transmission-section-card">
+                <div class="all-vitals-ready-alert" id="all-vitals-ready-alert">
+                    <i class="fas fa-check-circle text-green fa-lg"></i>
+                    <div>
+                        <strong>Toutes les constantes sont mesurées !</strong>
+                        Rédigez maintenant votre transmission et sélectionnez le niveau d'alerte pour obtenir votre évaluation.
+                    </div>
+                </div>
+
+                <div class="section-title-wrap">
+                    <h3><i class="fas fa-pen-nib text-orange"></i> Transmission Ciblée & Alerte Médicale</h3>
+                    <small class="text-muted">Évaluation du raisonnement clinique</small>
+                </div>
+
+                <form class="transmission-form" id="transmission-form" onsubmit="event.preventDefault();">
+                    <!-- Niveau d'alerte médicale -->
+                    <div class="form-group-alert">
+                        <label>Degré d'alerte clinique (selon les valeurs du cours) :</label>
+                        <div class="alert-level-selector">
+                            <label class="alert-radio-card green">
+                                <span class="alert-card-title">
+                                    <input type="radio" name="alert-level" value="normal">
+                                    <i class="fas fa-check-circle text-green"></i> Vert : Patient stable
+                                </span>
+                                <span class="alert-card-desc">Constantes dans les normes. Surveillance usuelle.</span>
+                            </label>
+
+                            <label class="alert-radio-card orange">
+                                <span class="alert-card-title">
+                                    <input type="radio" name="alert-level" value="warning">
+                                    <i class="fas fa-exclamation-circle text-orange"></i> Orange : Surveillance rapprochée
+                                </span>
+                                <span class="alert-card-desc">Constantes limites ou subfébriles (ex: 92-94% SpO₂).</span>
+                            </label>
+
+                            <label class="alert-radio-card red">
+                                <span class="alert-card-title">
+                                    <input type="radio" name="alert-level" value="danger">
+                                    <i class="fas fa-radiation-alt text-red"></i> Rouge : Alerte médicale urgente
+                                </span>
+                                <span class="alert-card-desc">Anomalie majeure (Fièvre ≥38°C, Tachycardie, HTA, SpO₂ basse). Médecin prévenu.</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Zone de texte de la transmission -->
+                    <div class="form-group-note">
+                        <label for="trans-note-input">Note de transmission infirmière (Données - Actions - Résultats / Alerte) :</label>
+                        <textarea id="trans-note-input" class="trans-textarea" placeholder="Exemple : 02h30 - Patient présentant une température à 38,8°C et une tachycardie à 120 bpm... Mesures prises : enfant découvert, médecin de garde prévenu pour prescription d'un antipyrétique..."></textarea>
+                        <div class="textarea-hints">
+                            <i class="fas fa-lightbulb text-orange"></i> Rédigez avec les termes médicaux exacts du PPTX (fièvre/hyperthermie, tachycardie, hypertension, hypoxémie/saturation, fréquence respiratoire) et précisez vos actions immédiates.
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn-submit-transmission" id="btn-submit-transmission">
+                        <i class="fas fa-paper-plane"></i> Valider la transmission & Obtenir mon bilan clinique
+                    </button>
+                </form>
+            </section>
+
+        </div>
+
+    </main>
+
+    <!-- MODAL 1 : PROCÉDURE CLINIQUE INTERACTIVE PAR ÉTAPES -->
+    <div class="modal-overlay" id="procedure-modal" role="dialog" aria-modal="true">
+        <div class="procedure-modal-box">
+            <div class="proc-modal-header">
+                <h3 id="proc-modal-title"><i class="fas fa-stethoscope"></i> Mesure Clinique</h3>
+                <button class="close-modal-x" id="close-proc-modal-btn" aria-label="Fermer"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="proc-modal-body">
+                <!-- Référence au cours PPTX -->
+                <div class="proc-meta-banner" id="proc-slide-ref">
+                    Conforme au cours PPTX : Slide 8 (Technique de mesure)
+                </div>
+
+                <!-- Matériel requis selon PPTX -->
+                <div class="proc-equipment-box">
+                    <h4><i class="fas fa-box-open text-orange"></i> Matériel requis selon le cours PPTX :</h4>
+                    <ul class="equipment-list-chips" id="proc-equipment-list">
+                        <!-- Liste dynamique -->
+                    </ul>
+                </div>
+
+                <!-- Dialogue d'étape -->
+                <div class="patient-dialogue-bubble">
+                    <div class="dialogue-speaker"><i class="fas fa-user"></i> Patient :</div>
+                    <p id="proc-patient-dialogue">« D'accord infirmier(ère), je vous écoute. »</p>
+                </div>
+
+                <!-- Jauge de progression de la procédure -->
+                <div class="progress-bar-wrap">
+                    <div class="progress-bar-fill" id="proc-progress-bar"></div>
+                </div>
+
+                <!-- Pipeline des 7 étapes obligatoires -->
+                <div class="steps-pipeline-list" id="proc-steps-pipeline">
+                    <!-- Généré dynamiquement :
+                         1. Hygiène des mains
+                         2. Explication au patient
+                         3. Installation & Positionnement
+                         4. Mise en place & Mesure
+                         5. Lecture du résultat
+                         6. Retrait & Désinfection
+                         7. Noter sur la feuille
+                    -->
+                </div>
+
+                <!-- Poste d'action interactif lors de la mesure -->
+                <div class="proc-live-workstation" id="proc-live-workstation">
+                    <!-- Minijeu de mesure interactif (gonflage brassard, bip thermomètre, etc.) -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2 : BILAN D'ÉVALUATION CLINIQUE & NOTATION -->
+    <div class="modal-overlay" id="result-modal" role="dialog" aria-modal="true">
+        <!-- Rempli dynamiquement par ClinicalSimulator.showFinalEvaluation() -->
+    </div>
+
+    <!-- MODAL 3 : RÉFÉRENTIEL DU COURS PPTX (ACCÈS COMPLET AUX DIAPOSITIVES) -->
+    <div class="modal-overlay" id="pptx-ref-modal" role="dialog" aria-modal="true">
+        <div class="pptx-ref-modal-box">
+            <div class="proc-modal-header">
+                <h3><i class="fas fa-book-medical"></i> Référentiel Officiel du Cours PPTX : « Les signes vitaux »</h3>
+                <button class="close-modal-x" id="btn-close-pptx-ref" aria-label="Fermer"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="pptx-ref-content">
+                <!-- 1. Température -->
+                <div class="ref-slide-item">
+                    <h4><i class="fas fa-thermometer-half text-orange"></i> 1. La Température Corporelle (Slides 4 - 8)</h4>
+                    <p><strong>Définition :</strong> Degré de chaleur produit et conservé par le corps humain. Régulée par l'hypothalamus.</p>
+                    <p><strong>Valeurs normales (Slide 5) :</strong></p>
+                    <ul>
+                        <li><span class="text-green">Normale : environ 36,5 à 37,5 °C</span></li>
+                        <li><span class="text-red">Fièvre : généralement à partir de 38 °C</span></li>
+                        <li><span class="text-red">Hypothermie : température inférieure à 35 °C</span></li>
+                        <li><span class="text-red">Hyperthermie : augmentation excessive de la température corporelle</span></li>
+                    </ul>
+                    <p><strong>Sites de mesure (Slide 6) :</strong> Axillaire, buccale, rectale, tympanique, frontale.</p>
+                    <p><strong>Matériel (Slide 7) :</strong> Thermomètre électronique ou infrarouge, gants à usage unique si nécessaire, solution désinfectante, compresses.</p>
+                    <p><strong>Technique (Slide 8) :</strong> Se laver les mains ➔ Expliquer le soin ➔ Vérifier le matériel ➔ Installer le patient ➔ Placer le thermomètre ➔ Attendre le signal sonore ➔ Lire et noter ➔ Désinfecter le matériel et se laver les mains.</p>
+                </div>
+
+                <!-- 2. Pouls -->
+                <div class="ref-slide-item">
+                    <h4><i class="fas fa-heart text-orange"></i> 2. Le Pouls / Fréquence Cardiaque (Slides 10 - 13)</h4>
+                    <p><strong>Définition :</strong> Perception des battements cardiaques au niveau d'une artère superficielle.</p>
+                    <p><strong>Valeurs normales adulte au repos (Slide 11) :</strong></p>
+                    <ul>
+                        <li><span class="text-green">Normal : 60 à 100 battements par minute (bpm)</span></li>
+                        <li><span class="text-red">Tachycardie : plus de 100 battements par minute</span></li>
+                        <li><span class="text-red">Bradycardie : moins de 60 battements par minute</span></li>
+                    </ul>
+                    <p><strong>Sites de mesure (Slide 12) :</strong> Pouls radial (poignet), carotidien (cou), brachial (bras), fémoral (aine), pédieux (dessus du pied).</p>
+                    <p><strong>Caractéristiques à examiner (Slide 13) :</strong> Fréquence (bpm), Rythme (régulier ou irrégulier), Amplitude (force du pouls), Symétrie.</p>
+                </div>
+
+                <!-- 3. Fréquence respiratoire -->
+                <div class="ref-slide-item">
+                    <h4><i class="fas fa-lungs text-orange"></i> 3. La Fréquence Respiratoire (Slides 14 - 16)</h4>
+                    <p><strong>Définition :</strong> Nombre de cycles respiratoires (inspiration + expiration) effectués par une personne en une minute.</p>
+                    <p><strong>Valeurs normales adulte au repos (Slide 15) :</strong> <span class="text-green">12 à 20 cycles par minute</span>.</p>
+                    <p><strong>Méthode de mesure (Slide 16) :</strong> Installer le patient confortablement ➔ Observer les mouvements de la cage thoracique ➔ Compter les cycles pendant une minute ➔ Observer la profondeur et le rythme ➔ Noter le résultat.</p>
+                </div>
+
+                <!-- 4. Tension artérielle -->
+                <div class="ref-slide-item">
+                    <h4><i class="fas fa-heartbeat text-orange"></i> 4. La Tension Artérielle (Slides 17 - 21)</h4>
+                    <p><strong>Définition :</strong> Pression exercée par le sang sur la paroi des artères en mmHg. Comporte la pression systolique (contraction) et diastolique (relâchement).</p>
+                    <p><strong>Valeurs de référence (Slide 18 & 19) :</strong></p>
+                    <ul>
+                        <li><span class="text-green">Référence courante adulte : proche de 120/80 mmHg</span></li>
+                        <li><span class="text-red">Hypertension artérielle : élévation persistante de la pression artérielle</span></li>
+                        <li><span class="text-red">Hypotension artérielle : souvent définie par une valeur inférieure à 90/60 mmHg</span></li>
+                    </ul>
+                    <p><strong>Matériel (Slide 20) :</strong> Tensiomètre, brassard adapté à la taille du bras, stéthoscope pour la mesure manuelle.</p>
+                    <p><strong>Technique (Slide 21) :</strong> Installer au repos 5 minutes ➔ Position assise, dos soutenu ➔ Bras à hauteur du cœur ➔ Installer le brassard ➔ Effectuer la mesure ➔ Lire systole et diastole ➔ Noter les résultats.</p>
+                </div>
+
+                <!-- 5. Saturation en oxygène -->
+                <div class="ref-slide-item">
+                    <h4><i class="fas fa-fingerprint text-orange"></i> 5. La Saturation en Oxygène SpO₂ (Slides 22 - 25)</h4>
+                    <p><strong>Définition :</strong> Pourcentage d'hémoglobine dans le sang qui transporte de l'oxygène.</p>
+                    <p><strong>Valeurs et Interprétations (Slide 23) :</strong></p>
+                    <ul>
+                        <li><span class="text-green">95 à 100 % : généralement normal chez un adulte en bonne santé</span></li>
+                        <li><span class="text-orange">92 à 94 % : valeur basse nécessitant une évaluation selon le contexte</span></li>
+                        <li><span class="text-red">Moins de 90 % : hypoxémie importante possible, nécessitant une évaluation médicale urgente</span></li>
+                    </ul>
+                    <p><strong>Matériel (Slide 24) :</strong> Oxymètre de pouls.</p>
+                    <p><strong>Technique (Slide 25) :</strong> Installer le patient confortablement ➔ Placer l'oxymètre sur un doigt ➔ Attendre la stabilisation de la mesure ➔ Lire le % de SpO₂ et le pouls ➔ Noter le résultat.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts Applicatifs -->
+    <script src="js/audio.js"></script>
+    <script src="js/cases.js"></script>
+    <script src="js/monitor.js"></script>
+    <script src="js/simulator.js"></script>
+    <script src="js/app.js"></script>
+
+</body>
+</html>
